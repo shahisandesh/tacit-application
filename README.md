@@ -7,7 +7,7 @@ Tacit's own apps. Everything here is dark, quiet, and takes its colours from the
 ## Install
 
 ```sh
-git clone git@github.com:shahisandesh/tacit-application.git && cd tacit-application
+git clone github.com/shahisandesh/tacit-application.git && cd tacit-application
 ./install.sh
 ```
 
