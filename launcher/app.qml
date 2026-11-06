@@ -227,6 +227,26 @@ FloatingWindow {
 
     WindowGround {}
 
+    // A click on a window moves the focus, and the watch above closes the launcher. A click on
+    // the bare desktop moves nothing, so this transparent sheet under every window catches it:
+    // the background layer takes the clicks no window wants, and one of those is a click outside.
+    Instantiator {
+        model: Quickshell.screens
+        PanelWindow {
+            id: clickCatcher
+            required property var modelData
+            visible: true
+            screen: modelData
+            exclusiveZone: 0
+            WlrLayershell.layer: WlrLayer.Background
+            color: "transparent"
+            focusable: false
+            anchors { left: true; right: true; top: true; bottom: true }
+
+            TapHandler { onTapped: Qt.quit() }
+        }
+    }
+
     Item {
         id: chrome
         anchors.fill: parent
