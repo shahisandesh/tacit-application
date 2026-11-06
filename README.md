@@ -16,6 +16,7 @@ The installer activates each piece, and re-running it is safe — it adds only w
 - binds **Ctrl+Space** to the launcher and writes its window rules (Hyprland custom Lua config)
 - writes window rules for the Markdown viewer and a **`tacit-markdown-viewer.desktop`** entry into
   `~/.local/share/applications`, so it appears in the launcher and app lists
+- writes window rules for the task manager and a **`tacit-task-manager.desktop`** entry the same way
 - generates the **Tacit Zed theme** if Zed is installed (`~/.config/zed/themes/tacit.json`)
 
 Needs `qs` (Quickshell) on PATH; the launcher's copy-to-clipboard uses `wl-copy`.
@@ -48,7 +49,24 @@ a slide deck). Headings wear the palette's green, the accent marks rules, quotes
 edges, and the Type panel lets the reader pick faces, size and line height. Run it directly with
 `qs -p markdown-viwer/app.qml` or open it from the app list once installed.
 
+### task-manager/
+
+![The task manager: four gauges along the top — memory, CPU, disk, GPU — then programs biggest-first with their icons, share and CPU, the End task ring at the foot](docs/screenshots/task-manager.png)
+
+What the desktop is spending, in the same glass sheet. Four gauges across the head — memory,
+CPU with its core count, disk space with live read and write speed, and GPU busy with its memory
+(through NVML or sysfs; it says "No reading" when neither answers). The list is **programs, not
+threads** —
+`tacit-mem`'s counting (each program's real share: PSS plus its slice of swap, so shared libraries
+are not counted twice), grouped by executable and sorted biggest first, with a CPU figure measured
+over a short sample. It refreshes every two seconds and the cursor stays on the program it was on.
+Typing narrows the list; Enter moves to the **End task** ring, which asks first — an ended program
+does not come back, so there is no Undo, only the question. Root's programs join *System services*
+and cannot be ended without sudo.
+
 ### zed-theme/
+
+![Zed with the Tacit theme: Python on the same glass sheet, strings in the accent, comments quiet and italic, the wallpaper glowing through the bottom](docs/screenshots/zed-theme.png)
 
 A port of Tacit's look to the [Zed](https://zed.dev) editor. `zed-theme/tacit_theme.py` reads the
 same wallpaper palette the shell generates (`~/.local/state/quickshell/user/generated/colors.json`)
