@@ -3,6 +3,7 @@
 # Installs this repo's apps on a Tacit machine and activates them:
 #   - the launcher: binds Ctrl+Space and its window rules in Hyprland's custom Lua config
 #   - the markdown viewer: a .desktop entry in ~/.local/share/applications, and its window rules
+#   - the task manager: a .desktop entry in ~/.local/share/applications, and its window rules
 #   - the Zed theme: generates ~/.config/zed/themes/tacit.json from the wallpaper's palette
 # Re-running is safe: each step adds only what is missing, and the .desktop and theme are rewritten.
 set -euo pipefail
@@ -86,6 +87,35 @@ EOF
     fi
 }
 
+# --- task manager: a .desktop entry and its window rules ----------------------------------------
+install_taskman() {
+    mkdir -p "$APPS"
+    cat > "$APPS/tacit-task-manager.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Task Manager
+GenericName=System monitor
+Comment=See what the desktop is spending, and end a program
+Exec=qs -n -p $REPO/task-manager/app.qml
+Icon=utilities-system-monitor
+Categories=System;Monitor;
+Terminal=false
+StartupNotify=false
+EOF
+    say "wrote $APPS/tacit-task-manager.desktop"
+    if [[ -d "$HYPR" ]] && ! grep -q '\^Task Manager\$' "$HYPR/rules.lua" 2>/dev/null; then
+        cat >> "$HYPR/rules.lua" <<-'EOF'
+
+		-- Task Manager: floating, its own size, centred.
+		hl.window_rule({ match = { class = "org.quickshell", title = "^Task Manager$" }, float = true })
+		hl.window_rule({ match = { class = "org.quickshell", title = "^Task Manager$" }, size = { "900", "700" } })
+		hl.window_rule({ match = { class = "org.quickshell", title = "^Task Manager$" }, center = true })
+		EOF
+        say "added the task manager window rules"
+        changed=1
+    fi
+}
+
 # --- Zed theme: generated from the wallpaper's palette ------------------------------------------
 install_theme() {
     if ! command -v python3 >/dev/null; then
@@ -106,10 +136,11 @@ command -v qs >/dev/null || say "quickshell (qs) is not on PATH — the apps wil
 
 bind_launcher
 install_viewer
+install_taskman
 install_theme
 
 if [[ $changed -eq 1 ]] && command -v hyprctl >/dev/null; then
     hyprctl reload >/dev/null 2>&1 && say "Hyprland reloaded" || true
 fi
 
-say "done. Ctrl+Space opens the launcher; Markdown Viewer is in your app list; the theme is 'Tacit' in Zed."
+say "done. Ctrl+Space opens the launcher; Markdown Viewer and Task Manager are in your app list; the theme is 'Tacit' in Zed."
