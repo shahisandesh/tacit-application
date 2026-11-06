@@ -24,6 +24,8 @@ Needs `qs` (Quickshell) on PATH; the launcher's copy-to-clipboard uses `wl-copy`
 
 ### launcher/
 
+![The launcher: eight most-used apps in one column on the dark glass sheet, the first row held by the accent focus ring](docs/screenshots/launcher.png)
+
 A keyboard-first app launcher: eight rows in one column, centred, opened with Ctrl+Space. With
 nothing typed it shows the eight most-used apps (uses are counted in `~/.local/state/tacit-launcher/usage.json`,
 so it learns habits as they go); typing narrows to the best eight matches by name, intent or
@@ -37,6 +39,8 @@ Enter or double-click opens, Escape closes, and it closes when focus truly moves
 crossing the screen no longer dismisses it.
 
 ### markdown-viwer/
+
+![The Markdown viewer in write mode: the source on the left, the rendered page beside it on the same glass sheet, green headings and accent rules](docs/screenshots/markdown-viewer.png)
 
 A Markdown reader, editor and presenter in one window: write (a plain source), read (rendered on
 a dark glass sheet that takes the wallpaper's colour and glow) and present (the same Markdown as
