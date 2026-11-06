@@ -10,7 +10,8 @@ import Tacit.Kit
 // launcher wants the icon and the name said loudly, so this is built from the kit's parts with
 // the same keyboard manners: one Tab stop; Up and Down step (Up on the first row asks the page to
 // give the keyboard back), Home and End jump, Enter opens; click selects, double click opens.
-// `items` is [{ source, name }].
+// `items` is [{ source, name, glyph }]; a row with a glyph shows it in the icon's place,
+// which is how the calculator's answer and the emoji list look.
 FocusScope {
     id: list
 
@@ -113,12 +114,22 @@ FocusScope {
                     }
                     spacing: Kit.tokens.space.m
 
+                    TacitText {
+                        // the emoji or the equals sign, in the icon's place
+                        visible: String(row.app?.glyph ?? "") !== ""
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: list.iconSide
+                        horizontalAlignment: Text.AlignHCenter
+                        text: String(row.app?.glyph ?? "")
+                        size: "row"
+                    }
                     Image {
                         id: icon
                         anchors.verticalCenter: parent.verticalCenter
                         width: list.iconSide
                         height: list.iconSide
                         visible: status === Image.Ready && String(row.app?.source ?? "") !== ""
+                            && String(row.app?.glyph ?? "") === ""
                         source: String(row.app?.source ?? "")
                         sourceSize: Qt.size(list.iconSide * 2, list.iconSide * 2)
                         fillMode: Image.PreserveAspectFit
@@ -127,7 +138,7 @@ FocusScope {
                     }
                     Symbol {
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: !icon.visible
+                        visible: !icon.visible && String(row.app?.glyph ?? "") === ""
                         width: list.iconSide
                         height: list.iconSide
                         text: "apps"

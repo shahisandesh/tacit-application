@@ -6,9 +6,12 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Tacit.Kit
+import "emoji.js" as Emoji
 
 // Launcher: eight apps at a time in one column, centred on the screen, opened with Ctrl+Space.
 // With nothing typed it shows the eight apps used most; typing narrows to the best eight matches.
+// Typing a sum (2 + 2) turns the list into a calculator, and Enter copies the answer; typing a
+// colon turns it into the emoji list, and Enter copies the chosen one.
 // Rows are icon and name only. Enter, or a double click, opens; Escape closes, and so does a
 // click outside, since a launcher that lingers has already failed. Uses are counted in a small
 // file, so the first eight learn the person's habits as they go.
@@ -25,6 +28,13 @@ FloatingWindow {
     property bool hadFocus: false
 
     readonly property int shown: 8
+    // 0 lists apps, 1 does a sum, 2 lists emoji
+    readonly property int mode: {
+        const q = window.query.trim()
+        if (q.startsWith(":")) return 2
+        if (q !== "" && /^[\d\s+\-*/%^().]+$/.test(q) && /\d/.test(q) && /[+\-*/%^]/.test(q)) return 1
+        return 0
+    }
     // Quickshell reads the .desktop files after the window is made, and the list arrives a
     // moment later; this counts those arrivals so the app list is built again when they do.
     property int entriesRev: 0
@@ -86,7 +96,35 @@ FloatingWindow {
     }
 
     function tilesFor(apps) {
-        return apps.map(a => ({ source: a.picture, name: a.name }))
+        return apps.map(a => ({ source: a.picture, name: a.name, glyph: "", copy: "" }))
+    }
+
+    // The sum only when the words are wholly a sum: digits, spaces and the four signs.
+    // Nothing else reaches the calculator's maths.
+    function calcOf(q) {
+        try {
+            const v = Number(Function("\"use strict\"; return (" + q.replace(/\^/g, "**") + ")")())
+            if (!isFinite(v) || Math.abs(v) > 1e15) return null
+            return Math.round(v * 1e10) / 1e10
+        } catch (e) {
+            return null
+        }
+    }
+
+    // The rows the list shows, whichever mode the typing has picked. Each row is
+    // { source, name, glyph, copy }; the copy is what Enter puts on the clipboard.
+    readonly property var shownRows: {
+        const q = window.query.trim()
+        if (window.mode === 1) {
+            const v = window.calcOf(q)
+            if (v !== null)
+                return [{ source: "", name: q + "  =  " + v, glyph: "=", copy: String(v) }]
+        } else if (window.mode === 2) {
+            return Emoji.matches(q.slice(1).trim()).map(n => ({
+                source: "", name: ":" + n + ":", glyph: Emoji.MAP[n], copy: Emoji.MAP[n]
+            }))
+        }
+        return window.tilesFor(window.shownApps)
     }
 
     // The key a use is counted under. Some systems end entry ids with `.desktop` and some do
@@ -96,6 +134,14 @@ FloatingWindow {
     }
 
     function launch(index) {
+        // calculator and emoji rows copy their answer instead of opening anything
+        if (window.mode !== 0) {
+            const row = window.shownRows[index]
+            if (!row || row.copy === "") return
+            clipboard.payload = row.copy
+            clipboard.running = true
+            return
+        }
         const app = window.shownApps[index]
         if (!app) return
         const c = Object.assign({}, window.counts)
@@ -119,16 +165,27 @@ FloatingWindow {
     }
 
     // A click outside moves the focus to another window, and the window system tells us; the
-    // launcher that is not looked at is already in the way.
+    // launcher that is not looked at is already in the way. But moving the mouse is not looking
+    // away: a crossing pointer hands focus between windows in fits and starts, so the leaving
+    // must hold for a moment with the pointer outside the launcher before it closes.
+    readonly property bool pointerInside: pointer.hovered
+
     Connections {
         target: ToplevelManager
         function onActiveToplevelChanged() {
-            if (window.isMine(ToplevelManager.activeToplevel)) window.hadFocus = true
-            else if (window.hadFocus) Qt.quit()
+            if (window.isMine(ToplevelManager.activeToplevel)) {
+                window.hadFocus = true
+                focusTimer.stop()
+            } else if (window.hadFocus && !window.pointerInside) focusTimer.restart()
         }
     }
+    Timer {
+        id: focusTimer
+        interval: 500
+        onTriggered: if (!window.pointerInside) Qt.quit()
+    }
 
-    onShownAppsChanged: if (list) list.cursor = 0
+    onShownRowsChanged: if (list) list.cursor = 0
 
     // The counts, read once at open and written after each launch.
     FileView {
@@ -156,12 +213,29 @@ FloatingWindow {
         interval: 400
         onTriggered: Qt.quit()
     }
+    Process {
+        id: clipboard
+        property string payload: ""
+        stdinEnabled: true
+        command: ["wl-copy"]
+        onStarted: {
+            clipboard.write(clipboard.payload)
+            clipboard.stdinEnabled = false
+        }
+        onExited: Qt.quit()
+    }
 
     WindowGround {}
 
     Item {
         id: chrome
         anchors.fill: parent
+
+        // the launcher's own ground, watched only for where the pointer is; it takes no clicks
+        HoverHandler {
+            id: pointer
+            acceptedButtons: Qt.NoButton
+        }
 
         Keys.onEscapePressed: event => {
             Qt.quit()
@@ -192,6 +266,7 @@ FloatingWindow {
                 height: Kit.tokens.height.field
                 hint: "Search apps"
                 label: "Search apps"
+                text: Quickshell.env("LAUNCHER_Q") ?? ""
                 onTextChanged: window.query = field.text
                 onAccepted: window.launch(list.cursor >= 0 ? list.cursor : 0)
                 Keys.onDownPressed: event => {
@@ -210,8 +285,8 @@ FloatingWindow {
                 top: searchRow.bottom
                 topMargin: Kit.tokens.space.m
             }
-            items: window.tilesFor(window.shownApps)
-            label: "Apps"
+            items: window.shownRows
+            label: window.mode === 1 ? "Calculator" : window.mode === 2 ? "Emoji" : "Apps"
             onActivated: index => window.launch(index)
             onUpRequested: field.focusIn()
         }
@@ -222,9 +297,11 @@ FloatingWindow {
                 bottom: parent.bottom
                 margins: Kit.tokens.space.l
             }
-            text: window.query.trim() === ""
+            text: window.mode === 1 ? "Enter copies the answer"
+                : window.mode === 2 ? "Enter copies the emoji"
+                : window.query.trim() === ""
                 ? "Most used"
-                : window.shownApps.length + (window.shownApps.length === 1 ? " match" : " matches")
+                : window.shownRows.length + (window.shownRows.length === 1 ? " match" : " matches")
             size: "meta"
             ink: "faint"
         }
